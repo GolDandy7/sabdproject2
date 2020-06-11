@@ -1,6 +1,7 @@
 package utils;
 
 import java.sql.SQLOutput;
+import java.util.Date;
 
 public class DataParser {
     //HP: ritardo compreso tra 5 minuti e 5 ore
@@ -30,12 +31,8 @@ public class DataParser {
         return min;
     }
 
-    public static String getSlot(String date){
-        String[] datasplit= date.split("-");
-        String[] hoursplit=datasplit[3].split(":");
-        String hour=hoursplit[0].substring(1,3);
-
-        int h= Integer.parseInt(hour);
+    public static String getSlot(Date date){
+        int h = (int)(date.getTime() % 86400000) / 3600000;
         if(h>=5 && h<12)
             return "AM";
         else if(h>=12 && h<19)
