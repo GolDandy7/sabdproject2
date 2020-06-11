@@ -13,8 +13,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>7</source>
-                    <target>7</target>
+                    <source>8</source>
+                    <target>8</target>
                 </configuration>
             </plugin>
         </plugins>
@@ -26,14 +26,14 @@
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-java</artifactId>
             <version>1.10.0</version>
-            <scope>provided</scope>
+            <!--scope>provided</scope-->
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.flink/flink-streaming-java -->
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-streaming-java_2.12</artifactId>
             <version>1.10.0</version>
-            <scope>provided</scope>
+            <!--scope>provided</scope>-->
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
@@ -50,6 +50,18 @@
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-metrics-dropwizard</artifactId>
             <version>1.10.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>1.7.7</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>1.2.17</version>
+            <scope>runtime</scope>
         </dependency>
     </dependencies>
 

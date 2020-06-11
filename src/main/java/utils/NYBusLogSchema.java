@@ -6,6 +6,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import java.io.IOException;
+import java.text.ParseException;
 
 public class NYBusLogSchema implements DeserializationSchema<NYBusLog> {
 
@@ -13,7 +14,12 @@ public class NYBusLogSchema implements DeserializationSchema<NYBusLog> {
 
     @Override
     public NYBusLog deserialize(byte[] bytes) throws IOException {
-        return NYBusLog.fromString(new String(bytes));
+        try {
+            return NYBusLog.fromString(new String(bytes));
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     @Override
