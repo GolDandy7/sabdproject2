@@ -50,8 +50,8 @@ public class NYBusLog implements Comparable {
             System.err.println("OccuredOn is empty: " + row);
         }
         Date datebus=new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss.SSS").parse(splitted[7]);
-        long date=datebus.getTime()/1000;
-
+        long date=datebus.getTime();
+        System.out.println(datebus+" timestamp: "+date);
         int delay= DataParser.getMinFromString(splitted[11]);
 
         NYBusLog nyBusLog=new NYBusLog(date,splitted[9],delay,splitted[5],DataParser.getSlot(datebus));

@@ -3,6 +3,7 @@ import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
@@ -15,8 +16,9 @@ import java.util.List;
 
 public class Query1 {
 
-    private static final int WINDOW_SIZE = 1;      // hours
-    //private static final int WINDOW_SIZE = 24 * 7;  // hours
+    private static final int WINDOW_SIZE = 24;      // giorno
+    //private static final int WINDOW_SIZE = 24 * 7;  // settimana
+    //private static final int WINDOW_SIZE = 24 * 30;  // mese
 
     public static void run(DataStream<NYBusLog> stream) throws Exception {
         DataStream<NYBusLog> timestampedAndWatermarked = stream
@@ -37,55 +39,70 @@ public class Query1 {
                 .process(new ChartProcessAllWindowFunction());
 
         chart.print();
+
         //forse vuole il TextoOutputFormat
         chart.writeAsText(String.format("output"+ "querypinco_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
+
     }
 
-    private static class SumAggregator implements AggregateFunction<NYBusLog, Long, Long> {
+    public static class MyAverage {
+        public String boro;
+        public Integer count=0;
+        public Double sum=0.0;
+    }
+
+    private static class SumAggregator implements AggregateFunction<NYBusLog, MyAverage, Double> {
+
         @Override
-        public Long createAccumulator() {
-            return 0L;
+        public MyAverage createAccumulator() {
+            return new MyAverage();
         }
 
         @Override
-        public Long add(NYBusLog value, Long accumulator) {
-            return accumulator + value.getDelay();
+        public MyAverage add(NYBusLog myNy, MyAverage myAverage) {
+            myAverage.boro=myNy.getBoro();
+            myAverage.count++;
+            myAverage.sum=myAverage.sum+myNy.getDelay();
+            return myAverage;
         }
 
         @Override
-        public Long getResult(Long accumulator) {
-            return accumulator;
+        public Double getResult(MyAverage myAverage) {
+
+            return   myAverage.sum/myAverage.count;
         }
 
         @Override
-        public Long merge(Long a, Long b) {
-            return a + b;
+        public MyAverage merge(MyAverage a, MyAverage b) {
+            a.sum+=b.sum;
+            a.count+=b.count;
+            return a;
         }
     }
 
     private static class KeyBinder
-            extends ProcessWindowFunction<Long, Tuple2<String, Long>, String, TimeWindow> {
+            extends ProcessWindowFunction<Double, Tuple2<String, Double>, String, TimeWindow> {
 
         @Override
         public void process(String key,
                             Context context,
-                            Iterable<Long> counts,
-                            Collector<Tuple2<String, Long>> out) {
-            Long count = counts.iterator().next();
-            out.collect(new Tuple2<>(key, count));
+                            Iterable<Double> average,
+                            Collector<Tuple2<String, Double>> out) {
+            Double avg = average.iterator().next();
+            out.collect(new Tuple2<>(key, avg));
         }
     }
 
     private static class ChartProcessAllWindowFunction
-            extends ProcessAllWindowFunction<Tuple2<String, Long>, String, TimeWindow> {
+            extends ProcessAllWindowFunction<Tuple2<String, Double>, String, TimeWindow> {
 
         @Override
-        public void process(Context context, Iterable<Tuple2<String, Long>> iterable, Collector<String> collector) {
-            List<Tuple2<String, Long>> counts = new ArrayList<>();
-            for (Tuple2<String, Long> t : iterable)
-                counts.add(t);
-            counts.sort((a, b) -> new Long(b.f1 - a.f1).intValue());
+        public void process(Context context, Iterable<Tuple2<String, Double>> iterable, Collector<String> collector) {
+            List<Tuple2<String, Double>> averageList = new ArrayList<>();
+            for (Tuple2<String, Double> t : iterable)
+                averageList.add(t);
+            averageList.sort((a, b) -> new Double(b.f1 - a.f1).intValue());
 
             /*
             LocalDateTime startDate = LocalDateTime.ofEpochSecond(
@@ -96,9 +113,9 @@ public class Query1 {
              */
             StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() / 1000));
 
-            int size = counts.size();
-            for (int i = 0; i < 3 && i < size; i++)
-                result.append(", ").append(counts.get(i).f0).append(", ").append(counts.get(i).f1);
+            int size = averageList.size();
+            for (int i = 0; i < size; i++)
+                result.append(", ").append(averageList.get(i).f0).append(", ").append(averageList.get(i).f1);
 
             collector.collect(result.toString());
         }
