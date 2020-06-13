@@ -7,7 +7,8 @@ if __name__ == '__main__':
 
     producer = KafkaProducer(bootstrap_servers='localhost:9092')
     # producer = KafkaProducer(bootstrap_servers='35.205.91.60:9092')
-    filename = 'dataset/bus-breakdown-and-delays.csv'
+    #filename = 'dataset/bus-breakdown-and-delays.csv'
+    filename = 'dataset/prova.csv'
     K = 1 / 4000  # compression factor
     # K = 0  # compression factor
 

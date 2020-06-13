@@ -29,6 +29,7 @@ public class Query1 {
                                 return logIntegerTuple2.getDateOccuredOn();
                             }
                         });
+        //timestampedAndWatermarked.print();
 
         // somma del delay per boro
         DataStream<String> chart = timestampedAndWatermarked
@@ -41,7 +42,7 @@ public class Query1 {
         chart.print();
 
         //forse vuole il TextoOutputFormat
-        chart.writeAsText(String.format("output"+ "querypinco_%d.out",WINDOW_SIZE),
+        chart.writeAsText(String.format("output"+ "query1_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
 
     }
@@ -104,14 +105,7 @@ public class Query1 {
                 averageList.add(t);
             averageList.sort((a, b) -> new Double(b.f1 - a.f1).intValue());
 
-            /*
-            LocalDateTime startDate = LocalDateTime.ofEpochSecond(
-                    context.window().getStart() / 1000, 0, ZoneOffset.UTC);
-            LocalDateTime endDate = LocalDateTime.ofEpochSecond(
-                    context.window().getEnd() / 1000, 0, ZoneOffset.UTC);
-            StringBuilder result = new StringBuilder(startDate.toString() + " " + endDate.toString() + ": ");
-             */
-            StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() / 1000));
+            StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
 
             int size = averageList.size();
             for (int i = 0; i < size; i++)

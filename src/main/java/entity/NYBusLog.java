@@ -49,9 +49,9 @@ public class NYBusLog implements Comparable {
         if(splitted[7].isEmpty()){
             System.err.println("OccuredOn is empty: " + row);
         }
-        Date datebus=new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss.SSS").parse(splitted[7]);
+        Date datebus=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS").parse(splitted[7]);
         long date=datebus.getTime();
-        System.out.println(datebus+" timestamp: "+date);
+        System.out.println(datebus+" timestamp: "+date+" reason: "+splitted[5]+" Slot:"+DataParser.getSlot(datebus));
         int delay= DataParser.getMinFromString(splitted[11]);
 
         NYBusLog nyBusLog=new NYBusLog(date,splitted[9],delay,splitted[5],DataParser.getSlot(datebus));

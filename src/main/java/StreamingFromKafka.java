@@ -25,11 +25,9 @@ public class StreamingFromKafka {
         //properties.setProperty("bootstrap.servers", "broker:29092");
         properties.setProperty("bootstrap.servers", "localhost:9092");
         properties.setProperty("group.id", "flink");
-        LOG.info("Properties set {}", properties);
 
         DataStream<NYBusLog> stream =
                env.addSource(new FlinkKafkaConsumer<>("flink", new NYBusLogSchema(), properties));
-        LOG.info("stream created, {}", stream);
         Query1.run(stream);
         //Query2.run(stream);
         //Query3.run(stream);
