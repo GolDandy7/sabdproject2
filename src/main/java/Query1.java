@@ -1,24 +1,27 @@
 import entity.NYBusLog;
+import jdk.nashorn.internal.runtime.Context;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Query1 {
 
-    private static final int WINDOW_SIZE = 24;      // giorno
+    //private static final int WINDOW_SIZE = 24;      // giorno
     //private static final int WINDOW_SIZE = 24 * 7;  // settimana
-    //private static final int WINDOW_SIZE = 24 * 30;  // mese
+    private static final int WINDOW_SIZE = 24*30;  // mese
 
     public static void run(DataStream<NYBusLog> stream) throws Exception {
         DataStream<NYBusLog> timestampedAndWatermarked = stream
@@ -28,17 +31,15 @@ public class Query1 {
                             public long extractTimestamp(NYBusLog logIntegerTuple2) {
                                 return logIntegerTuple2.getDateOccuredOn();
                             }
-                        });
+                        }).filter(x -> x.getDelay() != -1);
         //timestampedAndWatermarked.print();
 
         // somma del delay per boro
         DataStream<String> chart = timestampedAndWatermarked
-                .keyBy(NYBusLog::getBoro)
-                .timeWindow(Time.hours(WINDOW_SIZE))
+                .keyBy(NYBusLog::getBoro).timeWindow(Time.hours(WINDOW_SIZE))
                 .aggregate(new SumAggregator(), new KeyBinder())
                 .timeWindowAll(Time.hours(WINDOW_SIZE))
                 .process(new ChartProcessAllWindowFunction());
-
         chart.print();
 
         //forse vuole il TextoOutputFormat
@@ -105,7 +106,12 @@ public class Query1 {
                 averageList.add(t);
             averageList.sort((a, b) -> new Double(b.f1 - a.f1).intValue());
 
-            StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
+           //StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
+            LocalDateTime startDate = LocalDateTime.ofEpochSecond(
+                    context.window().getStart() / 1000, 0, ZoneOffset.UTC);
+            LocalDateTime endDate = LocalDateTime.ofEpochSecond(
+                    context.window().getEnd() / 1000, 0, ZoneOffset.UTC);
+            StringBuilder result = new StringBuilder(startDate.toString() + " " + endDate.toString() + ": ");
 
             int size = averageList.size();
             for (int i = 0; i < size; i++)

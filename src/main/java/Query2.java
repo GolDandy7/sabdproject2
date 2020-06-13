@@ -26,7 +26,7 @@ public class Query2 {
                             public long extractTimestamp(NYBusLog nyTimeStamp) {
                                 return nyTimeStamp.getDateOccuredOn();
                             }
-                        });
+                        }).filter(x -> !x.getTime_slot().equals("null"));
         // somma del delay per boro
         DataStream<String> chart = timestampedAndWatermarked
                 .keyBy(NYBusLog::getDelay_reason)
@@ -108,11 +108,8 @@ public class Query2 {
             countListAM.sort((a, b) -> new Integer(b.f1 - a.f1).intValue());
             countListPM.sort((a, b) -> new Integer(b.f1 - a.f1).intValue());
 
-           /* for(Tuple2 <String,Integer> t:countListAM)
-                System.out.println("AM: "+t);
-            for(Tuple2 <String,Integer> t:countListPM)
-                System.out.println("PM "+t);*/
-            StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
+
+           StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
 
             int sizeAM = countListAM.size();
             int sizePM = countListPM.size();
