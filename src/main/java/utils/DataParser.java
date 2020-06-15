@@ -15,7 +15,7 @@ public class DataParser {
         // se campo nullo o inizia con un un carattere-> delay=0
         delay=delay.trim(); //elimino spazio prima e dopo
         if(delay.isEmpty() || !Character.isDigit(delay.charAt(0)))
-            return 0;
+            return -1;
         char delay_chars[]=delay.toCharArray();
         boolean isNumber[] = new boolean[delay.length()];
          for(int i=0;i<delay_chars.length;i++){
