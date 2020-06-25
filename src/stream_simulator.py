@@ -6,30 +6,25 @@ import time
 if __name__ == '__main__':
 
     producer = KafkaProducer(bootstrap_servers='localhost:9092')
-    # producer = KafkaProducer(bootstrap_servers='35.205.91.60:9092')
+    # producer = KafkaProducer(bootstrap_servers='xxx:9092')
     filename = 'dataset/bus-breakdown-and-delays.csv'
-    #filename = 'dataset/prova.csv'
-    #filename = 'dataset/provasenzaprimariga.csv'
-    K = 1 / 8000  # compression factor
-    # K = 0  # compression factor
-
+    K = 1 / 8000  # fattore di compressione
     f = open(filename, "r")
 
-    # read to skip the header
     f.readline()
 
     line_count = 0
-    prev_date = 0
+    date_before = 0
     for line_count, line in enumerate(f):
         if len(line.split(";")) == 21:
             date_time_str = line.split(";")[7]
             date_object1 = datetime.strptime(date_time_str, '%Y-%m-%dT%H:%M:%S.%f')
-            date_c = time.mktime(date_object1.timetuple())
+            current_date = time.mktime(date_object1.timetuple())
             if line_count == 0:
-                prev_date = date_c
-            sleep((date_c - prev_date) * K)
+                date_before = current_date
+            sleep((current_date - date_before) * K)
             producer.send('flink', str.encode(line))
-            prev_date = date_c
+            date_before = current_date
         else:
             continue
 

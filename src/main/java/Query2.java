@@ -10,13 +10,14 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Query2 {
     private static final int WINDOW_SIZE = 24;      // giorno
     //private static final int WINDOW_SIZE = 24 * 7;  // settimana
-    //private static final int WINDOW_SIZE = 24 * 30;  // mese
 
     public static void run(DataStream<NYBusLog> stream) throws Exception {
         DataStream<NYBusLog> timestampedAndWatermarked = stream
@@ -31,14 +32,14 @@ public class Query2 {
         DataStream<String> chart = timestampedAndWatermarked
                 .keyBy(NYBusLog::getDelay_reason)
                 .timeWindow(Time.hours(WINDOW_SIZE))
-                .aggregate(new Query2.SumAggregator(), new Query2.KeyBinder())
+                .aggregate(new CountAggregator(), new Query2.KeyBinder())
                 .timeWindowAll(Time.hours(WINDOW_SIZE))
-                .process(new Query2.ChartProcessAllWindowFunction());
+                .process(new ResultProcessAllWindows());
 
-        chart.print();
+        //chart.print();
 
         //forse vuole il TextoOutputFormat
-        chart.writeAsText(String.format("output"+ "query2_%d.out",WINDOW_SIZE),
+        chart.writeAsText(String.format("out/output"+ "query2_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
 
     }
@@ -49,7 +50,7 @@ public class Query2 {
         public Integer countPM=0;
     }
 
-    private static class SumAggregator implements AggregateFunction<NYBusLog, MyReason, Tuple2<Integer,Integer>> {
+    private static class CountAggregator implements AggregateFunction<NYBusLog, MyReason, Tuple2<Integer,Integer>> {
 
         @Override
         public MyReason createAccumulator() {
@@ -93,7 +94,7 @@ public class Query2 {
         }
     }
 
-    private static class ChartProcessAllWindowFunction
+    private static class ResultProcessAllWindows
             extends ProcessAllWindowFunction<Tuple2<String, Tuple2<Integer,Integer>>, String, TimeWindow> {
 
         @Override
@@ -108,8 +109,10 @@ public class Query2 {
             countListAM.sort((a, b) -> new Integer(b.f1 - a.f1).intValue());
             countListPM.sort((a, b) -> new Integer(b.f1 - a.f1).intValue());
 
-
-           StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
+            LocalDateTime startDate = LocalDateTime.ofEpochSecond(
+                    context.window().getStart() / 1000, 0, ZoneOffset.UTC);
+            StringBuilder result = new StringBuilder(String.valueOf(startDate));
+           //StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
 
             int sizeAM = countListAM.size();
             int sizePM = countListPM.size();

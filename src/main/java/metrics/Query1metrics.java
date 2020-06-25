@@ -3,7 +3,9 @@ package metrics;
 import entity.NYBusLog;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.dropwizard.metrics.DropwizardMeterWrapper;
@@ -22,28 +24,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Query1metrics {
-    private static final int WINDOW_SIZE = 24;      // giorno
+    //private static final int WINDOW_SIZE = 24;      // giorno
     //private static final int WINDOW_SIZE = 24 * 7;  // settimana
-    //private static final int WINDOW_SIZE = 24*30;  // mese
-
+    private static final int WINDOW_SIZE = 24*30;  // mese
     public static void run(DataStream<NYBusLog> stream) throws Exception {
-
-
-
-
-
-
-        DataStream<NYBusLog> timestampedAndWatermarked = stream
+        DataStream<Tuple2<NYBusLog,Long>> timestampedAndWatermarked = stream
                 .assignTimestampsAndWatermarks
                         (new BoundedOutOfOrdernessTimestampExtractor<NYBusLog>(Time.seconds(1)) {
                             @Override
                             public long extractTimestamp(NYBusLog logIntegerTuple2) {
                                 return logIntegerTuple2.getDateOccuredOn();
                             }
-                        }).filter(x -> x.getDelay() != -1);
-        //timestampedAndWatermarked.print();
+                        }).filter(x -> x.getDelay() != -1)
+                .filter(x->!x.getBoro().isEmpty())
+                .map(x-> new Tuple2<>(x,System.currentTimeMillis())).
+                        returns(Types.TUPLE(Types.GENERIC(NYBusLog.class), Types.LONG));
 
-        DataStream<Tuple2<NYBusLog,String>> prova= timestampedAndWatermarked.map(new RichMapFunction<NYBusLog, Tuple2<NYBusLog, String>>() {
+        DataStream<Tuple3<NYBusLog,String,Long>> prova= timestampedAndWatermarked.map(new RichMapFunction<Tuple2<NYBusLog,Long>, Tuple3<NYBusLog, String,Long>>() {
             private transient Meter meter;
 
             @Override
@@ -54,11 +51,10 @@ public class Query1metrics {
             }
 
             @Override
-            public Tuple2<NYBusLog, String> map(NYBusLog nyBusLog) throws Exception {
+            public Tuple3<NYBusLog, String,Long> map(Tuple2<NYBusLog,Long> nyBusLogLong) throws Exception {
                 this.meter.markEvent();
                 String res2 = "\n Query_1_throughput_in , " + System.currentTimeMillis() + " , " + meter.getCount() + " , " + meter.getRate();
-
-                return new Tuple2<>(nyBusLog, res2);
+                return new Tuple3<>(nyBusLogLong.f0, res2,nyBusLogLong.f1);
             }
         });
 
@@ -68,13 +64,13 @@ public class Query1metrics {
         DataStream<String> chart = prova
                 .keyBy(value->value.f0.getBoro())
                 .timeWindow(Time.hours(WINDOW_SIZE))
-                .aggregate( new SumAggregator(), new KeyBinder())
+                .aggregate( new AverageAggregator(), new KeyBinder())
                 .timeWindowAll(Time.hours(WINDOW_SIZE))
-                .process(new ChartProcessAllWindowFunction());
+                .process(new ResultProcessAllWindows());
         //chart.print();
 
         //forse vuole il TextoOutputFormat
-        chart.writeAsText(String.format("output"+ "query1_%d.out",WINDOW_SIZE),
+        chart.writeAsText(String.format("output"+ "query1Metrics_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
 
     }
@@ -83,9 +79,11 @@ public class Query1metrics {
         public String boro;
         public Integer count=0;
         public Double sum=0.0;
+        public Long ts = 0L;
     }
 
-    private static class SumAggregator implements AggregateFunction<Tuple2<NYBusLog,String>, MyAverage, Double> {
+    private static class AverageAggregator implements AggregateFunction<Tuple3<NYBusLog,String,Long>,
+            MyAverage, Tuple2<Double,Long>> {
 
         @Override
         public MyAverage createAccumulator() {
@@ -93,42 +91,44 @@ public class Query1metrics {
         }
 
         @Override
-        public MyAverage add(Tuple2<NYBusLog,String> myNy, MyAverage myAverage) {
+        public MyAverage add(Tuple3<NYBusLog,String,Long> myNy, MyAverage myAverage) {
             myAverage.boro=myNy.f0.getBoro();
             myAverage.count++;
             myAverage.sum=myAverage.sum+myNy.f0.getDelay();
+            myAverage.ts= Math.max(myAverage.ts,myNy.f2);
             return myAverage;
         }
 
         @Override
-        public Double getResult(MyAverage myAverage) {
+        public Tuple2<Double,Long> getResult(MyAverage myAverage) {
 
-            return   myAverage.sum/myAverage.count;
+            return   new Tuple2<>(myAverage.sum/myAverage.count,myAverage.ts);
         }
 
         @Override
         public MyAverage merge(MyAverage a, MyAverage b) {
             a.sum+=b.sum;
             a.count+=b.count;
+
             return a;
         }
     }
 
     private static class KeyBinder
-            extends ProcessWindowFunction<Double, Tuple2<String, Double>, String, TimeWindow> {
+            extends ProcessWindowFunction<Tuple2<Double,Long>, Tuple2<String, Tuple2<Double,Long>>, String, TimeWindow> {
 
         @Override
         public void process(String key,
                             Context context,
-                            Iterable<Double> average,
-                            Collector<Tuple2<String, Double>> out) {
-            Double avg = average.iterator().next();
+                            Iterable<Tuple2<Double,Long>> average,
+                            Collector<Tuple2<String, Tuple2<Double,Long>>> out) {
+            Tuple2<Double,Long> avg = average.iterator().next();
             out.collect(new Tuple2<>(key, avg));
         }
     }
 
-    private static class ChartProcessAllWindowFunction
-            extends ProcessAllWindowFunction<Tuple2<String, Double>, String, TimeWindow> {
+    private static class ResultProcessAllWindows
+            extends ProcessAllWindowFunction<Tuple2<String, Tuple2<Double,Long>>, String, TimeWindow> {
         private transient Meter meter;
 
         @Override
@@ -141,27 +141,43 @@ public class Query1metrics {
 
 
         @Override
-        public void process(Context context, Iterable<Tuple2<String, Double>> iterable, Collector<String> collector) {
-            List<Tuple2<String, Double>> averageList = new ArrayList<>();
-            for (Tuple2<String, Double> t : iterable)
+        public void process(Context context, Iterable<Tuple2<String, Tuple2<Double,Long>>> iterable, Collector<String> collector) {
+            List<Tuple2<String, Tuple2<Double,Long>>> averageList = new ArrayList<>();
+            boolean first=true;
+            Tuple3<String,Double,Long> max_tuple=null;
+            for (Tuple2<String, Tuple2<Double,Long>> t : iterable){
+                if (first) {
+                    max_tuple = new Tuple3<String, Double, Long>(t.f0,t.f1.f0,t.f1.f1);
+                    first=false;
+                }
+                else if(t.f1.f1 > max_tuple.f2) {
+                    max_tuple = new Tuple3<String, Double, Long>(t.f0,t.f1.f0,t.f1.f1);
+                }
                 averageList.add(t);
-            averageList.sort((a, b) -> new Double(b.f1 - a.f1).intValue());
+
+            }
+            averageList.sort((a, b) -> new Double(b.f1.f0 - a.f1.f0).intValue());
 
             //StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
             LocalDateTime startDate = LocalDateTime.ofEpochSecond(
                     context.window().getStart() / 1000, 0, ZoneOffset.UTC);
-            LocalDateTime endDate = LocalDateTime.ofEpochSecond(
-                    context.window().getEnd() / 1000, 0, ZoneOffset.UTC);
-            StringBuilder result = new StringBuilder(startDate.toString() + " " + endDate.toString() + ": ");
+
+            StringBuilder result = new StringBuilder(startDate.toString()+"; ");
             String res2 = " ";
-            int size = averageList.size();
+            Long localTime = System.currentTimeMillis();
+            this.meter.markEvent();
+            //res2 = ";"+ meter.getRate()+";";
+            result.append((localTime - max_tuple.f2));
+
+            /*int size = averageList.size();
             for (int i = 0; i < size; i++) {
                 this.meter.markEvent();
-                res2 += "Query_1_throughput_window_out , " + System.currentTimeMillis() + " , " + meter.getCount() + " , " + meter.getRate();
-                result.append(", ").append(averageList.get(i).f0).append(", ").append(averageList.get(i).f1).append(res2);
-                res2=" ";
-            }
 
+                res2 = " Q1_Throughput_Window : "+ meter.getRate()+", ";
+                result.append(", ").append(averageList.get(i).f0).append(", ").append(averageList.get(i).f1.f0);
+                //res2=" ";
+            }*/
+            //result.append(res2).append(" Latency_Window: "+(localTime - max_tuple.f2));
             collector.collect(result.toString());
         }
 

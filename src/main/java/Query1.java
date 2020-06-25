@@ -1,5 +1,4 @@
 import entity.NYBusLog;
-import jdk.nashorn.internal.runtime.Context;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
@@ -7,7 +6,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
@@ -31,19 +29,20 @@ public class Query1 {
                             public long extractTimestamp(NYBusLog logIntegerTuple2) {
                                 return logIntegerTuple2.getDateOccuredOn();
                             }
-                        }).filter(x -> x.getDelay() != -1);
+                        }).filter(x -> x.getDelay() != -1)
+                        .filter(x->!x.getBoro().isEmpty())
+                .filter(x-> !x.getTime_slot().equals("null"));
         //timestampedAndWatermarked.print();
 
         // somma del delay per boro
         DataStream<String> chart = timestampedAndWatermarked
                 .keyBy(NYBusLog::getBoro).timeWindow(Time.hours(WINDOW_SIZE))
-                .aggregate(new SumAggregator(), new KeyBinder())
+                .aggregate(new AvgAggregator(), new KeyBinder())
                 .timeWindowAll(Time.hours(WINDOW_SIZE))
-                .process(new ChartProcessAllWindowFunction());
-        chart.print();
+                .process(new ResultProcessAllWindows());
 
         //forse vuole il TextoOutputFormat
-        chart.writeAsText(String.format("output"+ "query1_%d.out",WINDOW_SIZE),
+        chart.writeAsText(String.format("out/output"+ "query1_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
 
     }
@@ -54,7 +53,7 @@ public class Query1 {
         public Double sum=0.0;
     }
 
-    private static class SumAggregator implements AggregateFunction<NYBusLog, MyAverage, Double> {
+    private static class AvgAggregator implements AggregateFunction<NYBusLog, MyAverage, Double> {
 
         @Override
         public MyAverage createAccumulator() {
@@ -85,7 +84,6 @@ public class Query1 {
 
     private static class KeyBinder
             extends ProcessWindowFunction<Double, Tuple2<String, Double>, String, TimeWindow> {
-
         @Override
         public void process(String key,
                             Context context,
@@ -96,22 +94,18 @@ public class Query1 {
         }
     }
 
-    private static class ChartProcessAllWindowFunction
+    private static class ResultProcessAllWindows
             extends ProcessAllWindowFunction<Tuple2<String, Double>, String, TimeWindow> {
-
         @Override
         public void process(Context context, Iterable<Tuple2<String, Double>> iterable, Collector<String> collector) {
             List<Tuple2<String, Double>> averageList = new ArrayList<>();
             for (Tuple2<String, Double> t : iterable)
                 averageList.add(t);
             averageList.sort((a, b) -> new Double(b.f1 - a.f1).intValue());
-
-           //StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
             LocalDateTime startDate = LocalDateTime.ofEpochSecond(
-                    context.window().getStart() / 1000, 0, ZoneOffset.UTC);
-            LocalDateTime endDate = LocalDateTime.ofEpochSecond(
-                    context.window().getEnd() / 1000, 0, ZoneOffset.UTC);
-            StringBuilder result = new StringBuilder(startDate.toString() + " " + endDate.toString() + ": ");
+                   context.window().getStart() / 1000, 0, ZoneOffset.UTC);
+           //StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
+           StringBuilder result = new StringBuilder(String.valueOf(startDate));
 
             int size = averageList.size();
             for (int i = 0; i < size; i++)

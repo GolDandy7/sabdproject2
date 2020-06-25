@@ -1,10 +1,7 @@
 package utils;
 
-import java.sql.SQLOutput;
-import java.time.LocalDate;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.Locale;
 
 public class DataParser {
@@ -12,9 +9,12 @@ public class DataParser {
     //HP: ritardo compreso tra 5 minuti e 5 ore
     public static int getMinFromString (String delay){
         int min = 0;
-        // se campo nullo o inizia con un un carattere-> delay=0
+        // se campo inizia con carattere-> delay=-1
+        // se campo vuoto , si assume ritardo nullo.
         delay=delay.trim(); //elimino spazio prima e dopo
-        if(delay.isEmpty() || !Character.isDigit(delay.charAt(0)))
+        if(delay.isEmpty())
+            return 0;
+        if(!Character.isDigit(delay.charAt(0)))
             return -1;
         char delay_chars[]=delay.toCharArray();
         boolean isNumber[] = new boolean[delay.length()];
@@ -62,22 +62,29 @@ public class DataParser {
 
     }
 
-    //testing del parser
-    public static void main(String[] args) {
+    public static String getParsedCompanyName(String company){
 
-        String min="60min";
-        String min1=" ";
-        String min2="?";
-        String min3="2h";
-        String min4="55 mins";
-        String min5="";
-        String min6="45";
-        String min7="2 hours 5 mins";
-        String min8="15-30 min";
-        String min9="45min-1h";
-        int a=getMinFromString(min9);
-        System.out.println("min:"+a);
+        // se campo inizia con carattere-> delay=-1
+        // se campo vuoto , si assume ritardo nullo.
+        company=company.trim(); //elimino spazio prima e dopo
+        if(company.isEmpty())
+            return null;
 
-
+        char company_chars[]=company.toCharArray();
+        boolean exit=false;
+        int start=0,end=-1,i=0;
+        do{
+            if(company_chars[i]== ',' || company_chars[i]== '('){
+                end=i;
+                exit=true;
+            }
+            i++;
+        }while(i< company_chars.length && exit==false);
+        if(i==company_chars.length)
+            end=i;
+        String result= company.substring(start,end);
+        return result;
     }
+
+
 }
