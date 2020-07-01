@@ -56,8 +56,7 @@ public class NYBusLog implements Comparable {
         }
         Date datebus = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US).parse(splitted[7]);
         long date=datebus.getTime();
-        int delay= DataParser.getMinFromString(splitted[11]);
-
+        int delay= DataParser.getMinFromStringV2(splitted[11]);
 
         NYBusLog nyBusLog=new NYBusLog(date,splitted[9],delay,
                 splitted[5],DataParser.getSlot(datebus),DataParser.getParsedCompanyName(splitted[10]));

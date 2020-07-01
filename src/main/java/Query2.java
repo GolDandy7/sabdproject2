@@ -16,8 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Query2 {
-    private static final int WINDOW_SIZE = 24;      // giorno
-    //private static final int WINDOW_SIZE = 24 * 7;  // settimana
+    //private static final int WINDOW_SIZE = 24;      // giorno
+    private static final int WINDOW_SIZE = 24 * 7;  // settimana
 
     public static void run(DataStream<NYBusLog> stream) throws Exception {
         DataStream<NYBusLog> timestampedAndWatermarked = stream

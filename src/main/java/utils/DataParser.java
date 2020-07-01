@@ -11,7 +11,7 @@ public class DataParser {
         int min = 0;
         // se campo inizia con carattere-> delay=-1
         // se campo vuoto , si assume ritardo nullo.
-        delay=delay.trim(); //elimino spazio prima e dopo
+        delay=delay.trim().toLowerCase(); //elimino spazio prima e dopo
         if(delay.isEmpty())
             return 0;
         if(!Character.isDigit(delay.charAt(0)))
@@ -31,7 +31,7 @@ public class DataParser {
         String result= delay.substring(start,end+1);
         min=Integer.parseInt(result);
         //hp: qualsiasi interno sotto i 5 minuti sono ore
-        if(min<5)
+        if(min<5 && delay.contains("h"))
             return 60*min;
         if(min>MAX_SIZE)
             return -1;
@@ -85,6 +85,62 @@ public class DataParser {
         String result= company.substring(start,end);
         return result;
     }
+    public static int parsingDelayMonth(String s[]){
+        String month[]={"gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"};
+        String temp=null;
+        if(s.length!=0)
+            temp=s[0];
+        else
+            temp="x";
+        for (int i=0;i<month.length;i++){
+            if(month[i].equals(s[0]))
+                return (i+1);
+        }
+        return -1;
+    }
+    public static int getMinFromStringV2 (String delay){
+        int min = 0;
+        String split_delay[]=null;
+        // se campo inizia con carattere-> delay=-1
+        // se campo vuoto , si assume ritardo nullo.
+        delay=delay.trim().toLowerCase(); //elimino spazio prima e dopo
+        if(delay.isEmpty())
+            return 0;
+        char delay_chars[]=delay.toCharArray();
+        if(!Character.isDigit(delay.charAt(0))){
+            if(delay.contains("---"))
+                return -1;
+            if(delay.contains("-")){
+                split_delay=delay.split("-");
+                min=parsingDelayMonth(split_delay);
+                return min;
+            }
+            else
+                return -1;
+        }
+        boolean isNumber[] = new boolean[delay.length()];
+        for(int i=0;i<delay_chars.length;i++){
+            isNumber[i]=Character.isDigit(delay_chars[i]);
+        }
+        int start=0,end=-1,i=0;
+        do{
+            if(isNumber[i]==true){
+                end=i;
+            }
+            i++;
+        }while(i< isNumber.length && isNumber[i]==true);
+        String result= delay.substring(start,end+1);
+        min=Integer.parseInt(result);
+        //hp: qualsiasi interno sotto i 5 minuti sono ore
+        if(min<5 && delay.contains("h"))
+            return 60*min;
+        if(min>MAX_SIZE)
+            return -1;
+        return min;
+    }
 
+    public static void main(String[] args) {
+        System.out.println(getMinFromStringV2("----------"));
 
+    }
 }

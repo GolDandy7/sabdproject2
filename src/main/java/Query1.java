@@ -17,9 +17,9 @@ import java.util.List;
 
 public class Query1 {
 
-    //private static final int WINDOW_SIZE = 24;      // giorno
+    private static final int WINDOW_SIZE = 24;      // giorno
     //private static final int WINDOW_SIZE = 24 * 7;  // settimana
-    private static final int WINDOW_SIZE = 24*30;  // mese
+    //private static final int WINDOW_SIZE = 24*30;  // mese
 
     public static void run(DataStream<NYBusLog> stream) throws Exception {
         DataStream<NYBusLog> timestampedAndWatermarked = stream
@@ -33,7 +33,8 @@ public class Query1 {
                         .filter(x->!x.getBoro().isEmpty())
                 .filter(x-> !x.getTime_slot().equals("null"));
         //timestampedAndWatermarked.print();
-
+        timestampedAndWatermarked.writeAsText(String.format("out/logv2.out"),
+                FileSystem.WriteMode.OVERWRITE).setParallelism(1);
         // somma del delay per boro
         DataStream<String> chart = timestampedAndWatermarked
                 .keyBy(NYBusLog::getBoro).timeWindow(Time.hours(WINDOW_SIZE))
@@ -44,7 +45,6 @@ public class Query1 {
         //forse vuole il TextoOutputFormat
         chart.writeAsText(String.format("out/output"+ "query1_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
-
     }
 
     public static class MyAverage {

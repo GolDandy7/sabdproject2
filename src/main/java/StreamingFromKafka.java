@@ -25,8 +25,8 @@ public class StreamingFromKafka {
 
         DataStream<NYBusLog> stream =
                env.addSource(new FlinkKafkaConsumer<>("flink", new NYBusLogSchema(), properties));
-        //Query1.run(stream);
-        Query2.run(stream);
+        Query1.run(stream);
+        //Query2.run(stream);
         //Query3.run(stream);
 
         env.execute();
