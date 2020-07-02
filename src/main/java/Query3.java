@@ -16,8 +16,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Query3 {
+    //Scegliere dimensione finestra
     private static final int WINDOW_SIZE = 24;      // giorno
     //private static final int WINDOW_SIZE = 24 * 7;  // settimana
+    //Definizione dei pesi per la funzione f(x)= #Mec Problem * 0,5 + #Heavy Traffic * 0,3 + #Other Reason * 0,2
     private static final Double[] WEIGHTS ={0.5,0.3,0.2};
     public static void run(DataStream<NYBusLog> stream) throws Exception {
         DataStream<NYBusLog> timestampedAndWatermarked = stream
@@ -30,24 +32,22 @@ public class Query3 {
                         }).filter(x -> x.getDelay() != -1)
                 .filter(x-> x.getCompanyName()!=null)
                 .filter(x-> !x.getTime_slot().equals("null"));
-        //timestampedAndWatermarked.print();
 
-        // somma del delay per boro
-        DataStream<String> chart = timestampedAndWatermarked
+
+
+        DataStream<String> result_q3 = timestampedAndWatermarked
                 .keyBy(NYBusLog::getCompanyName)
                 .timeWindow(Time.hours(WINDOW_SIZE))
                 .aggregate(new ScoreAggregator(), new KeyBinder())
                 .timeWindowAll(Time.hours(WINDOW_SIZE))
                 .process(new ResultProcessAllWindows());
 
-        //chart.print();
-
-        //forse vuole il TextoOutputFormat
-        chart.writeAsText(String.format("out/output"+ "query3_%d.out",WINDOW_SIZE),
+        //Stampa sul File
+        result_q3.writeAsText(String.format("out/output"+ "query3_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
 
     }
-
+    //Classe che conteggia per ogni compagnia i ritardi dovuti MP, HT, OR
     public static class MyReasonCount {
         public String company;
         public Integer countMP=0; //mec problem
@@ -63,6 +63,7 @@ public class Query3 {
             return new MyReasonCount();
         }
 
+        // Se ritardo >30 minuti +2 al count relativo al ritardo
         @Override
         public MyReasonCount add(NYBusLog myNy, MyReasonCount myReasonCount) {
             myReasonCount.company=myNy.getCompanyName();
@@ -85,6 +86,7 @@ public class Query3 {
             return myReasonCount;
         }
 
+        //f(x)= # delay MP * 0,5 + # delay HT * 0,3 + # delay OR * 0,2
         @Override
         public Double getResult(MyReasonCount myReasonCount) {
 
@@ -99,7 +101,7 @@ public class Query3 {
             return a;
         }
     }
-
+    //Assegna chiave opportuna al risultato dell'aggregate
     private static class KeyBinder
             extends ProcessWindowFunction<Double, Tuple2<String, Double>, String, TimeWindow> {
 
@@ -113,6 +115,7 @@ public class Query3 {
         }
     }
 
+    //Definisce la classifica delle prime 5 compagne con f(x) più alta tramite sort per ogni finestra
     private static class ResultProcessAllWindows
             extends ProcessAllWindowFunction<Tuple2<String, Double>, String, TimeWindow> {
 

@@ -1,7 +1,6 @@
 package entity;
 import utils.DataParser;
 
-import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -48,7 +47,7 @@ public class NYBusLog implements Comparable {
     }
 
     //5 reason ,7 occured,9 boro ,10 company name 11 delay
-    public static NYBusLog fromString(String row) throws ParseException, IOException {
+    public static NYBusLog fromString(String row) throws ParseException {
         String[] splitted= row.split(";");
 
         if(splitted[7].isEmpty()){
@@ -56,11 +55,10 @@ public class NYBusLog implements Comparable {
         }
         Date datebus = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US).parse(splitted[7]);
         long date=datebus.getTime();
-        int delay= DataParser.getMinFromStringV2(splitted[11]);
+        int delay= DataParser.getMinFromString(splitted[11]);
 
-        NYBusLog nyBusLog=new NYBusLog(date,splitted[9],delay,
+        return new NYBusLog(date,splitted[9],delay,
                 splitted[5],DataParser.getSlot(datebus),DataParser.getParsedCompanyName(splitted[10]));
-        return nyBusLog;
     }
 
     @Override

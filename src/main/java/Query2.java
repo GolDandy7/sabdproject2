@@ -16,8 +16,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Query2 {
-    //private static final int WINDOW_SIZE = 24;      // giorno
-    private static final int WINDOW_SIZE = 24 * 7;  // settimana
+
+    //scegliere dimensione finsetra
+    private static final int WINDOW_SIZE = 24;      // giorno
+    //private static final int WINDOW_SIZE = 24 * 7;  // settimana
 
     public static void run(DataStream<NYBusLog> stream) throws Exception {
         DataStream<NYBusLog> timestampedAndWatermarked = stream
@@ -28,22 +30,24 @@ public class Query2 {
                                 return nyTimeStamp.getDateOccuredOn();
                             }
                         }).filter(x -> !x.getTime_slot().equals("null"));
-        // somma del delay per boro
-        DataStream<String> chart = timestampedAndWatermarked
+
+
+        DataStream<String> result_q2;
+        result_q2 = timestampedAndWatermarked
                 .keyBy(NYBusLog::getDelay_reason)
                 .timeWindow(Time.hours(WINDOW_SIZE))
-                .aggregate(new CountAggregator(), new Query2.KeyBinder())
+                .aggregate(new CountAggregator(), new KeyBinder())
                 .timeWindowAll(Time.hours(WINDOW_SIZE))
                 .process(new ResultProcessAllWindows());
 
-        //chart.print();
+        //result_q2.print();
 
-        //forse vuole il TextoOutputFormat
-        chart.writeAsText(String.format("out/output"+ "query2_%d.out",WINDOW_SIZE),
+        //Stampa sul File
+        result_q2.writeAsText(String.format("out/output"+ "query2_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
 
     }
-
+   //conteggia per ogni chiae il relativo ritardo nello slot AM e quello nello slot PM
     public static class MyReason {
         public String reason;
         public Integer countAM=0;
@@ -80,7 +84,7 @@ public class Query2 {
             return a;
         }
     }
-
+    // Assegna la chiave opportuna al risultato dell'aggregate
     private static class KeyBinder
             extends ProcessWindowFunction<Tuple2<Integer,Integer>, Tuple2<String, Tuple2<Integer,Integer>>, String, TimeWindow> {
 
@@ -94,6 +98,8 @@ public class Query2 {
         }
     }
 
+    //Ritorna il risultato ordinando tramite sort per le liste appartenenti agli slot AM e PM e di questi
+    //ne prende solo i primi 3 per ogni lista
     private static class ResultProcessAllWindows
             extends ProcessAllWindowFunction<Tuple2<String, Tuple2<Integer,Integer>>, String, TimeWindow> {
 
@@ -106,13 +112,13 @@ public class Query2 {
                 countListAM.add(new Tuple2<>(t.f0,t.f1.f0));
                 countListPM.add(new Tuple2<>(t.f0,t.f1.f1));
             }
-            countListAM.sort((a, b) -> new Integer(b.f1 - a.f1).intValue());
-            countListPM.sort((a, b) -> new Integer(b.f1 - a.f1).intValue());
+            countListAM.sort((a, b) -> b.f1 - a.f1);
+            countListPM.sort((a, b) -> b.f1 - a.f1);
 
             LocalDateTime startDate = LocalDateTime.ofEpochSecond(
                     context.window().getStart() / 1000, 0, ZoneOffset.UTC);
             StringBuilder result = new StringBuilder(String.valueOf(startDate));
-           //StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
+            //StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
 
             int sizeAM = countListAM.size();
             int sizePM = countListPM.size();

@@ -17,11 +17,12 @@ import java.util.List;
 
 public class Query1 {
 
+    //impostare la scelta della dimensione della finestra
     private static final int WINDOW_SIZE = 24;      // giorno
     //private static final int WINDOW_SIZE = 24 * 7;  // settimana
     //private static final int WINDOW_SIZE = 24*30;  // mese
 
-    public static void run(DataStream<NYBusLog> stream) throws Exception {
+    public static void run(DataStream<NYBusLog> stream) {
         DataStream<NYBusLog> timestampedAndWatermarked = stream
                 .assignTimestampsAndWatermarks
                         (new BoundedOutOfOrdernessTimestampExtractor<NYBusLog>(Time.seconds(1)) {
@@ -30,23 +31,20 @@ public class Query1 {
                                 return logIntegerTuple2.getDateOccuredOn();
                             }
                         }).filter(x -> x.getDelay() != -1)
-                        .filter(x->!x.getBoro().isEmpty())
+                .filter(x->!x.getBoro().isEmpty())
                 .filter(x-> !x.getTime_slot().equals("null"));
-        //timestampedAndWatermarked.print();
-        timestampedAndWatermarked.writeAsText(String.format("out/logv2.out"),
-                FileSystem.WriteMode.OVERWRITE).setParallelism(1);
-        // somma del delay per boro
+
+        // somma delay per boro
         DataStream<String> chart = timestampedAndWatermarked
                 .keyBy(NYBusLog::getBoro).timeWindow(Time.hours(WINDOW_SIZE))
                 .aggregate(new AvgAggregator(), new KeyBinder())
                 .timeWindowAll(Time.hours(WINDOW_SIZE))
                 .process(new ResultProcessAllWindows());
 
-        //forse vuole il TextoOutputFormat
         chart.writeAsText(String.format("out/output"+ "query1_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
     }
-
+    //claase statica di appoggio
     public static class MyAverage {
         public String boro;
         public Integer count=0;
@@ -82,6 +80,7 @@ public class Query1 {
         }
     }
 
+    //Assegna la chiave al risultato dell'aggregate
     private static class KeyBinder
             extends ProcessWindowFunction<Double, Tuple2<String, Double>, String, TimeWindow> {
         @Override
@@ -94,6 +93,7 @@ public class Query1 {
         }
     }
 
+    //stampa i risultati con data di riferimento di inizio finestra
     private static class ResultProcessAllWindows
             extends ProcessAllWindowFunction<Tuple2<String, Double>, String, TimeWindow> {
         @Override
@@ -101,15 +101,15 @@ public class Query1 {
             List<Tuple2<String, Double>> averageList = new ArrayList<>();
             for (Tuple2<String, Double> t : iterable)
                 averageList.add(t);
-            averageList.sort((a, b) -> new Double(b.f1 - a.f1).intValue());
+            //Debug per oridnare stampa
+            /*averageList.sort((a, b) -> new Double(b.f1 - a.f1).intValue());*/
             LocalDateTime startDate = LocalDateTime.ofEpochSecond(
-                   context.window().getStart() / 1000, 0, ZoneOffset.UTC);
-           //StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
-           StringBuilder result = new StringBuilder(String.valueOf(startDate));
+                    context.window().getStart() / 1000, 0, ZoneOffset.UTC);
+            //StringBuilder result = new StringBuilder(Long.toString(context.window().getStart() /1000));
+            StringBuilder result = new StringBuilder(String.valueOf(startDate));
 
-            int size = averageList.size();
-            for (int i = 0; i < size; i++)
-                result.append(", ").append(averageList.get(i).f0).append(", ").append(averageList.get(i).f1);
+            for (Tuple2<String, Double> stringDoubleTuple2 : averageList)
+                result.append(", ").append(stringDoubleTuple2.f0).append(", ").append(stringDoubleTuple2.f1);
 
             collector.collect(result.toString());
         }
