@@ -8,16 +8,16 @@ import utils.NYBusLogSchema;
 
 import java.util.Properties;
 
+// classe utilizzata solo nella UI di Flink
 public class StreamingFromKafkaMetrics {
+
     public static void main(String[] args) throws Exception {
 
-        // Create the execution environment.
-        // StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-        // Get the input data
         Properties properties = new Properties();
         properties.setProperty("bootstrap.servers", "broker:29092");
         //properties.setProperty("bootstrap.servers", "localhost:9092");

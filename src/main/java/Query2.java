@@ -31,7 +31,6 @@ public class Query2 {
                             }
                         }).filter(x -> !x.getTime_slot().equals("null"));
 
-
         DataStream<String> result_q2;
         result_q2 = timestampedAndWatermarked
                 .keyBy(NYBusLog::getDelay_reason)
@@ -40,14 +39,12 @@ public class Query2 {
                 .timeWindowAll(Time.hours(WINDOW_SIZE))
                 .process(new ResultProcessAllWindows());
 
-        //result_q2.print();
-
         //Stampa sul File
         result_q2.writeAsText(String.format("out/output"+ "query2_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
 
     }
-   //conteggia per ogni chiae il relativo ritardo nello slot AM e quello nello slot PM
+   //conteggia per ogni chiave il relativo delay nello slot AM e quello nello slot PM
     public static class MyReason {
         public String reason;
         public Integer countAM=0;
@@ -136,7 +133,6 @@ public class Query2 {
                 else
                     result.append(", ").append(countListPM.get(i).f0);
             }
-
 
             collector.collect(result.toString());
         }

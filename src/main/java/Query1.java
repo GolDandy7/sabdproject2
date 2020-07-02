@@ -35,16 +35,16 @@ public class Query1 {
                 .filter(x-> !x.getTime_slot().equals("null"));
 
         // somma delay per boro
-        DataStream<String> chart = timestampedAndWatermarked
+        DataStream<String> result_q1 = timestampedAndWatermarked
                 .keyBy(NYBusLog::getBoro).timeWindow(Time.hours(WINDOW_SIZE))
                 .aggregate(new AvgAggregator(), new KeyBinder())
                 .timeWindowAll(Time.hours(WINDOW_SIZE))
                 .process(new ResultProcessAllWindows());
 
-        chart.writeAsText(String.format("out/output"+ "query1_%d.out",WINDOW_SIZE),
+        result_q1.writeAsText(String.format("out/output"+ "query1_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
     }
-    //claase statica di appoggio
+    //classe statica di appoggio
     public static class MyAverage {
         public String boro;
         public Integer count=0;

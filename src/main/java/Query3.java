@@ -19,8 +19,10 @@ public class Query3 {
     //Scegliere dimensione finestra
     private static final int WINDOW_SIZE = 24;      // giorno
     //private static final int WINDOW_SIZE = 24 * 7;  // settimana
+
     //Definizione dei pesi per la funzione f(x)= #Mec Problem * 0,5 + #Heavy Traffic * 0,3 + #Other Reason * 0,2
     private static final Double[] WEIGHTS ={0.5,0.3,0.2};
+
     public static void run(DataStream<NYBusLog> stream) throws Exception {
         DataStream<NYBusLog> timestampedAndWatermarked = stream
                 .assignTimestampsAndWatermarks
@@ -32,8 +34,6 @@ public class Query3 {
                         }).filter(x -> x.getDelay() != -1)
                 .filter(x-> x.getCompanyName()!=null)
                 .filter(x-> !x.getTime_slot().equals("null"));
-
-
 
         DataStream<String> result_q3 = timestampedAndWatermarked
                 .keyBy(NYBusLog::getCompanyName)
@@ -47,7 +47,7 @@ public class Query3 {
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
 
     }
-    //Classe che conteggia per ogni compagnia i ritardi dovuti MP, HT, OR
+    //Classe che conteggia per ogni compagnia i ritardi dovuti a MP, HT, OR
     public static class MyReasonCount {
         public String company;
         public Integer countMP=0; //mec problem
@@ -115,7 +115,7 @@ public class Query3 {
         }
     }
 
-    //Definisce la classifica delle prime 5 compagne con f(x) più alta tramite sort per ogni finestra
+    //Definisce la classifica delle prime 5 compagnie con f(x) più alta tramite sort per ogni finestra
     private static class ResultProcessAllWindows
             extends ProcessAllWindowFunction<Tuple2<String, Double>, String, TimeWindow> {
 

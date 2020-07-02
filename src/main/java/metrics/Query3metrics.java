@@ -38,17 +38,15 @@ public class Query3metrics {
         //timestampedAndWatermarked.print();
 
         // somma del delay per boro
-        DataStream<String> chart = timestampedAndWatermarked
+        DataStream<String> result_q3m = timestampedAndWatermarked
                 .keyBy(value->value.f0.getCompanyName())
                 .timeWindow(Time.hours(WINDOW_SIZE))
                 .aggregate(new ScoreAggregator(), new KeyBinder())
                 .timeWindowAll(Time.hours(WINDOW_SIZE))
                 .process(new ResultProcessAllWindows());
 
-        //chart.print();
-
         //forse vuole il TextoOutputFormat
-        chart.writeAsText(String.format("output"+ "query3Metrics_%d.out",WINDOW_SIZE),
+        result_q3m.writeAsText(String.format("output"+ "query3Metrics_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
 
     }
@@ -149,11 +147,6 @@ public class Query3metrics {
             Long currentTime=System.currentTimeMillis();
             //result.append(" Latency_Window: "+(currentTime - max_tuple.f1));
             result.append(currentTime - max_tuple.f1);
-
-            /*int size = classifiedList.size();
-            for (int i = 0; i< size && i<5; i++)
-                result.append(", ").append(classifiedList.get(i).f0).append(", ").append(classifiedList.get(i).f1.f0);
-            result.append(" Latency_Window: "+(currentTime - max_tuple.f1));*/
 
             collector.collect(result.toString());
         }

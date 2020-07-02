@@ -61,16 +61,15 @@ public class Query1metrics {
         //prova.print();
 
         // somma del delay per boro
-        DataStream<String> chart = prova
+        DataStream<String> result_q1m = prova
                 .keyBy(value->value.f0.getBoro())
                 .timeWindow(Time.hours(WINDOW_SIZE))
                 .aggregate( new AverageAggregator(), new KeyBinder())
                 .timeWindowAll(Time.hours(WINDOW_SIZE))
                 .process(new ResultProcessAllWindows());
-        //chart.print();
 
         //forse vuole il TextoOutputFormat
-        chart.writeAsText(String.format("output"+ "query1Metrics_%d.out",WINDOW_SIZE),
+        result_q1m.writeAsText(String.format("output"+ "query1Metrics_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
 
     }

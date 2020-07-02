@@ -39,17 +39,14 @@ public class Query2metrics {
                         returns(Types.TUPLE(Types.GENERIC(NYBusLog.class), Types.LONG));
 
         // somma del delay per boro
-       DataStream<String> chart = timestampedAndWatermarked
+       DataStream<String> result_q2m = timestampedAndWatermarked
                 .keyBy(value->value.f0.getDelay_reason())
                 .timeWindow(Time.hours(WINDOW_SIZE))
                 .aggregate(new CountAggregator(), new KeyBinder())
                 .timeWindowAll(Time.hours(WINDOW_SIZE))
                 .process(new ResultProcessAllWindows());
 
-        //chart.print();
-
-        //forse vuole il TextoOutputFormat
-        chart.writeAsText(String.format("output"+ "query2Metrics_%d.out",WINDOW_SIZE),
+        result_q2m.writeAsText(String.format("output"+ "query2Metrics_%d.out",WINDOW_SIZE),
                 FileSystem.WriteMode.OVERWRITE).setParallelism(1);
 
     }
@@ -147,13 +144,13 @@ public class Query2metrics {
             StringBuilder result = new StringBuilder(startDate.toString()+";");
 
             String res2= " ";
-            //int sizeAM = countListAM.size();
-            //int sizePM = countListPM.size();
+            int sizeAM = countListAM.size();
+            int sizePM = countListPM.size();
             this.meter.markEvent();
             //res2 = ","+ meter.getRate()+", ";
             //result.append(res2);
             result.append((currentTime - max_tuple.f1));
-            /*for (int i = 0; i < 3 && i < sizeAM; i++){
+            for (int i = 0; i < 3 && i < sizeAM; i++){
                 this.meter.markEvent();
                 res2 = " Q2_Throughput_WindowAM : "+ meter.getRate()+", ";
 
@@ -161,10 +158,10 @@ public class Query2metrics {
                     result.append(", "+" AM: ").append(countListAM.get(i).f0);
                 else
                     result.append(", ").append(countListAM.get(i).f0);
-            }*/
+            }
 
 
-            /*for (int i = 0; i < 3 && i < sizePM; i++){
+            for (int i = 0; i < 3 && i < sizePM; i++){
                 this.meter.markEvent();
                 res2 = " Q1_Throughput_WindowPM : "+ meter.getRate()+", ";
 
@@ -172,7 +169,7 @@ public class Query2metrics {
                     result.append("; PM: ").append(countListPM.get(i).f0);
                 else
                     result.append(", ").append(countListPM.get(i).f0);
-            }*/
+            }
             //result.append(res2);
             collector.collect(result.toString());
         }
